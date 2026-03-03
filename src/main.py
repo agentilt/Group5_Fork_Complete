@@ -1,148 +1,249 @@
 """
 Module: Main Pipeline
 ---------------------
-Role: Orchestrate the full ML pipeline with logging and error handling.
-Usage: python src/main.py [--config CONFIG_PATH]
+Role: Orchestrate the full ML pipeline for traceability and
+      robust error handling.
+Usage: python src/main.py
 """
 
-import argparse
-import logging
 import sys
 from pathlib import Path
 
 # Ensure project root is on the Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.utils import (
-    PipelineError,
-    load_config,
-    save_csv,
-    save_model,
-    setup_logging,
-)
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+from src.utils import save_csv, save_model
 from src.load_data import load_raw_data
 from src.clean_data import clean_dataframe
 from src.validate import validate_dataframe
-from src.train import train_models
-from src.evaluate import generate_report
+from src.features import get_feature_preprocessor
+from src.train import train_model
+from src.evaluate import evaluate_model
 from src.infer import run_inference
 
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  CONFIGURATION — SETTINGS DICTIONARY                           ║
+# ║                                                                ║
+# ║  ⚠️  UPDATE THIS BLOCK WHEN SWITCHING TO YOUR REAL DATASET ⚠️  ║
+# ║  Every path, column name, and feature list must match your     ║
+# ║  actual data. The current values are pre-configured for the    ║
+# ║  NHL player stats dataset (or the dummy CSV fallback).         ║
+# ╚══════════════════════════════════════════════════════════════════╝
 
-def parse_args():
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="NHL Points Prediction Pipeline"
-    )
-    parser.add_argument(
-        "--config", default="config.yaml",
-        help="Path to configuration file (default: config.yaml)"
-    )
-    parser.add_argument(
-        "--inference-only", action="store_true",
-        help="Skip training and run inference only"
-    )
-    return parser.parse_args()
+SETTINGS = {
+    # Set to True when using auto-generated dummy data.
+    # Set to False once you plug in your real dataset.
+    "is_example_config": False,
 
+    "target_column": "Points",
+    "problem_type": "regression",      # "regression" or "classification"
+    "test_size": 0.2,
+    "random_state": 42,
 
-def run_training_pipeline(config: dict) -> None:
-    """
-    Execute the full training pipeline end-to-end.
+    # --- Paths ---
+    "raw_data_path": "data/raw/nhl_player_stats.csv",
+    "processed_data_path": "data/processed/clean.csv",
+    "model_path": "models/model.joblib",
+    "predictions_path": "data/inference/predictions.csv",
 
-    Why: A single orchestrator function ensures every step runs
-    in the correct order with consistent logging, making the
-    pipeline reproducible and traceable.
-
-    Args:
-        config: Pipeline configuration dictionary.
-    """
-    logger = logging.getLogger("nhl_pipeline")
-
-    # Step 1: Load raw data
-    logger.info("=" * 60)
-    logger.info("STEP 1: Loading raw data")
-    logger.info("=" * 60)
-    df_raw = load_raw_data(config["data"]["raw"])
-
-    # Step 2: Clean, select features, and encode
-    logger.info("=" * 60)
-    logger.info("STEP 2: Cleaning and preprocessing data")
-    logger.info("=" * 60)
-    df_clean = clean_dataframe(df_raw, config)
-
-    # Step 3: Validate
-    logger.info("=" * 60)
-    logger.info("STEP 3: Validating data")
-    logger.info("=" * 60)
-    validate_dataframe(df_clean, config)
-
-    # Step 4: Save processed data
-    logger.info("=" * 60)
-    logger.info("STEP 4: Saving processed data")
-    logger.info("=" * 60)
-    save_csv(df_clean, Path(config["data"]["processed"]))
-
-    # Step 5: Split, scale, and train models
-    logger.info("=" * 60)
-    logger.info("STEP 5: Training models")
-    logger.info("=" * 60)
-    results = train_models(df_clean, config)
-
-    # Step 6: Evaluate models
-    logger.info("=" * 60)
-    logger.info("STEP 6: Evaluating models")
-    logger.info("=" * 60)
-    models = {"ols": results["ols"], "lasso": results["lasso"]}
-    generate_report(
-        models,
-        results["X_train"], results["X_test"],
-        results["y_train"], results["y_test"],
-        results["feature_names"], config,
-    )
-
-    # Step 7: Save artifacts
-    logger.info("=" * 60)
-    logger.info("STEP 7: Saving model artifacts")
-    logger.info("=" * 60)
-    save_model(results["scaler"], Path(config["model"]["scaler_path"]))
-    for name in ("ols", "lasso"):
-        save_model(results[name], Path(config["model"][f"{name}_path"]))
-
-    logger.info("=" * 60)
-    logger.info("PIPELINE COMPLETE")
-    logger.info("=" * 60)
+    # --- Feature recipe ---
+    # Columns listed here must exist in the cleaned DataFrame.
+    # The ColumnTransformer drops everything NOT listed (remainder='drop').
+    "features": {
+        "quantile_bin": [
+            "Icetime_Minutes",
+            "Shot_Attempts",
+        ],
+        "categorical_onehot": [
+            "Pos",
+        ],
+        "numeric_passthrough": [
+            "Faceoff_Win_Pct",
+            "Takeaways",
+            "Giveaways",
+            "Shooting_Pct_On_Unblocked",
+            "PIM_Drawn",
+            "Pct_Shift_Starts_Offensive_Zone",
+            "On_Ice_Corsi_Pct",
+        ],
+        "n_bins": 3,
+    },
+}
 
 
 def main():
-    """Entry point for the NHL Points Prediction Pipeline."""
-    args = parse_args()
+    """Run the full NHL Points Prediction Pipeline."""
 
-    config = load_config(args.config)
-    logger = setup_logging(config.get("logging", {}))
-    logger.info("NHL Points Prediction Pipeline started")
+    # ──────────────────────────────────────────
+    # 0. CREATE DIRECTORIES
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 0: Creating directories")
+    print("=" * 60)
+    for d in ["data/raw", "data/processed", "data/inference",
+              "models", "reports"]:
+        Path(d).mkdir(parents=True, exist_ok=True)
+
+    # ──────────────────────────────────────────
+    # 0b. EXAMPLE CONFIG CHECK
+    # ──────────────────────────────────────────
+    if SETTINGS["is_example_config"]:
+        print("\n⚠️  WARNING: Running with EXAMPLE configuration!")
+        print("   The pipeline will generate dummy data.")
+        print("   Update SETTINGS to point to your real dataset.\n")
+
+    # ──────────────────────────────────────────
+    # 1. LOAD RAW DATA
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 1: Loading raw data")
+    print("=" * 60)
+    df_raw = load_raw_data(Path(SETTINGS["raw_data_path"]))
+
+    # ──────────────────────────────────────────
+    # 2. CLEAN DATA
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 2: Cleaning data")
+    print("=" * 60)
+    df_clean = clean_dataframe(df_raw, SETTINGS["target_column"])
+
+    # ──────────────────────────────────────────
+    # 3. SAVE PROCESSED CSV
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 3: Saving processed data")
+    print("=" * 60)
+    save_csv(df_clean, Path(SETTINGS["processed_data_path"]))
+    print(f"[main] Saved processed data to {SETTINGS['processed_data_path']}")
+
+    # ──────────────────────────────────────────
+    # 4. VALIDATE
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 4: Validating data")
+    print("=" * 60)
+    all_feature_cols = (
+        SETTINGS["features"]["quantile_bin"]
+        + SETTINGS["features"]["categorical_onehot"]
+        + SETTINGS["features"]["numeric_passthrough"]
+    )
+    required = [SETTINGS["target_column"]] + all_feature_cols
+    validate_dataframe(df_clean, required)
+
+    # ──────────────────────────────────────────
+    # 5. TRAIN / TEST SPLIT (before any fitting)
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 5: Train / test split")
+    print("=" * 60)
+    X = df_clean.drop(columns=[SETTINGS["target_column"]])
+    y = df_clean[SETTINGS["target_column"]]
 
     try:
-        if args.inference_only:
-            logger.info("Running inference only")
-            results = run_inference(config)
-            if not results.empty:
-                logger.info(
-                    "Undervalued players:\n%s", results.to_string()
-                )
-        else:
-            run_training_pipeline(config)
+        stratify = y if SETTINGS["problem_type"] == "classification" else None
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=SETTINGS["test_size"],
+            random_state=SETTINGS["random_state"],
+            stratify=stratify,
+        )
+    except ValueError:
+        # Fallback if stratification fails (e.g., too few samples per class)
+        print("[main] Stratification failed — falling back to random split")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=SETTINGS["test_size"],
+            random_state=SETTINGS["random_state"],
+        )
 
-    except PipelineError as e:
-        logger.error("Pipeline error: %s", e)
-        sys.exit(1)
-    except FileNotFoundError as e:
-        logger.error("File not found: %s", e)
-        sys.exit(1)
-    except ValueError as e:
-        logger.error("Validation error: %s", e)
-        sys.exit(1)
-    except Exception as e:
-        logger.error("Unexpected error: %s", e, exc_info=True)
-        sys.exit(1)
+    print(f"[main] Train: {len(X_train)} rows, Test: {len(X_test)} rows")
+
+    # ──────────────────────────────────────────
+    # 6. FAIL-FAST FEATURE CHECKS
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 6: Feature checks")
+    print("=" * 60)
+    missing = [c for c in all_feature_cols if c not in X_train.columns]
+    if missing:
+        raise ValueError(f"Configured feature columns missing from data: {missing}")
+
+    for col in SETTINGS["features"]["quantile_bin"]:
+        if not pd.api.types.is_numeric_dtype(X_train[col]):
+            raise TypeError(
+                f"Column '{col}' listed in quantile_bin must be numeric, "
+                f"got {X_train[col].dtype}"
+            )
+    print("[main] All feature checks passed")
+
+    # ──────────────────────────────────────────
+    # 7. BUILD FEATURE RECIPE (ColumnTransformer)
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 7: Building feature preprocessor")
+    print("=" * 60)
+    preprocessor = get_feature_preprocessor(
+        quantile_bin_cols=SETTINGS["features"]["quantile_bin"],
+        categorical_onehot_cols=SETTINGS["features"]["categorical_onehot"],
+        numeric_passthrough_cols=SETTINGS["features"]["numeric_passthrough"],
+        n_bins=SETTINGS["features"]["n_bins"],
+    )
+    print("[main] ColumnTransformer ready")
+
+    # ──────────────────────────────────────────
+    # 8. TRAIN MODEL (Pipeline: preprocess + model)
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 8: Training model")
+    print("=" * 60)
+    pipeline = train_model(
+        X_train, y_train, preprocessor, SETTINGS["problem_type"]
+    )
+
+    # ──────────────────────────────────────────
+    # 9. SAVE MODEL
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 9: Saving model")
+    print("=" * 60)
+    save_model(pipeline, Path(SETTINGS["model_path"]))
+    print(f"[main] Saved model to {SETTINGS['model_path']}")
+
+    # ──────────────────────────────────────────
+    # 10. EVALUATE ON HELD-OUT TEST SET
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 10: Evaluating on test set")
+    print("=" * 60)
+    score = evaluate_model(pipeline, X_test, y_test, SETTINGS["problem_type"])
+    print(f"[main] Final score: {score:.4f}")
+
+    # ──────────────────────────────────────────
+    # 11. INFERENCE ON EXAMPLE DATA
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 11: Running inference on example data")
+    print("=" * 60)
+    X_infer = X_test.head(5)
+    preds_df = run_inference(pipeline, X_infer)
+    print(preds_df)
+
+    # ──────────────────────────────────────────
+    # 12. SAVE PREDICTIONS
+    # ──────────────────────────────────────────
+    print("=" * 60)
+    print("STEP 12: Saving predictions")
+    print("=" * 60)
+    save_csv(preds_df, Path(SETTINGS["predictions_path"]))
+    print(f"[main] Saved predictions to {SETTINGS['predictions_path']}")
+
+    print("\n" + "=" * 60)
+    print("PIPELINE COMPLETE")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
