@@ -1,19 +1,19 @@
 # [Project Name: e.g., Retail Sales Forecasting]
 
-**Author:** TODO_STUDENT (Your Group Name or number)  
-**Course:** MLOps: Master in Business Analytics and Data Sciense
-**Status:** Session 1 (Initialization)
+**Author:** Group 5  
+**Course:** MLOps: Master in Business Analytics and Data Sciense   
+**Status:** In progress
 
 ---
 
 ## 1. Business Objective
-*Replace this section with your project definition.*
+Identifying undervalued NHL players through different regression models.
 
-* **The Goal:** What business value does this model create?
-  > *Example: Reduce food waste by 10% by predicting daily bakery demand.*
+* **The Goal:** 
+Evaluate and predict the offensive contribution (Points) of NHL players based on underlying on-ice performance metrics (e.g., Faceoff Win %, Takeaways, Icetime). This creates business value by helping teams identify undervalued talent, optimize salary cap space, and make data-driven trade decisions.
 
-* **The User:** Who consumes the output and how?
-  > *Example: Store managers receive a weekly PDF report on Monday mornings.*
+* **The User:** 
+General Managers, Scouting Departments, and Coaching Staffs. They will consume these predictions via automated reports to compare expected player output against actual contract costs.
 
 ---
 
@@ -21,23 +21,21 @@
 *How do we know if the project is successful?*
 
 * **Business KPI (The "Why"):**
-  > *Example: Reduce unsold inventory costs by $5,000/month.*
+Improve draft and trade ROI by identifying at least 3-5 undervalued players per season whose underlying metrics suggest high point-production potential.
 
 * **Technical Metric (The "How"):**
-  > *Example: Model MAPE (Mean Absolute Percentage Error) < 15% on the test set.*
+Identify 3-5 undervalued players per season whose predicted points are at least 5 points above their actual point production.
 
 * **Acceptance Criteria:**
-  > *Example: The model must outperform the current "moving average" baseline.*
+The modular regression model must successfully execute end-to-end without data leakage, pass all strict validation gates (no NaNs, correct schema), and outperform a naive baseline (such as a simple moving average of previous seasons' points).
 
 ---
 
 ## 3. The Data
 
-* **Source:** (e.g., Company Database, Kaggle CSV, API).
-* **Target Variable:** What specifically are you predicting/ classifying?
-* **Sensitive Info:** Are there emails, credit cards, or any PII (Personally Identifiable Information)?
-  > *⚠️ **WARNING:** If the dataset contains sensitive data, it must NEVER be committed to GitHub. Ensure `data/` is in your `.gitignore`.*
-
+* **Source:** Historical NHL player performance dataset (CSV format, from MoneyPuck.com).
+* **Target Variable:** Points (A composite target computed during preprocessing as Goals + Primary_Assists + Secondary_Assists).
+* **Sensitive Info:** This dataset contains publicly available sports statistics. There are no emails, financial records, or Personally Identifiable Information (PII) to protect. (Note: The raw data folder is still ignored by Git to prevent committing large files).
 ---
 
 ## 4. Repository Structure
