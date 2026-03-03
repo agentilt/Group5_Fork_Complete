@@ -1,10 +1,54 @@
 # MLOps Project Configuration
-# This file will eventually control paths, hyperparameters, and toggles.
+# Centralizes all paths, hyperparameters, and pipeline settings.
 
 data:
-  raw: "data/raw/dataset.csv"
+  raw: "data/raw/nhl_player_stats.csv"
   processed: "data/processed/clean.csv"
+  inference: "data/inference/"
+
+model:
+  output_dir: "models/"
+  ols_path: "models/ols_model.pkl"
+  lasso_path: "models/lasso_model.pkl"
+  scaler_path: "models/scaler.pkl"
 
 train:
   test_size: 0.2
   seed: 42
+  lasso_cv_folds: 5
+
+features:
+  target: "Points"
+  target_components:
+    - "Goals"
+    - "Primary_Assists"
+    - "Secondary_Assists"
+  explanatory:
+    - "Faceoff_Win_Pct"
+    - "Takeaways"
+    - "Giveaways"
+    - "Shot_Attempts"
+    - "Shooting_Pct_On_Unblocked"
+    - "PIM_Drawn"
+  controls:
+    - "Icetime_Minutes"
+    - "Pos"
+    - "Pct_Shift_Starts_Offensive_Zone"
+    - "On_Ice_Corsi_Pct"
+  leakage_columns:
+    - "Rank"
+    - "Name"
+    - "Team"
+    - "Goals"
+    - "Assists"
+    - "Primary_Assists"
+    - "Secondary_Assists"
+
+reports:
+  output_dir: "reports/"
+
+logging:
+  log_file: "logs/pipeline.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+  level: "INFO"

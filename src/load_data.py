@@ -1,25 +1,51 @@
-import pandas as pd
-from pathlib import Path
-from src.utils import load_csv, save_csv
+"""
+Module: Data Loader
+-------------------
+Role: Ingest raw NHL player data from CSV source.
+Input: Path to CSV file (from config.yaml).
+Output: pandas DataFrame containing raw player statistics.
+"""
 
-def load_raw_data(raw_data_path: Path) -> pd.DataFrame:
+import logging
+from pathlib import Path
+
+import pandas as pd
+
+from src.utils import load_csv
+
+
+logger = logging.getLogger("nhl_pipeline")
+
+
+def load_raw_data(raw_data_path: str) -> pd.DataFrame:
     """
-    Attempts to load the raw data CSV. If missing, generates a 
-    deterministic dummy dataset for scaffolding.
+    Load the raw NHL player statistics CSV file.
+
+    Why: Isolating data loading in its own module allows the
+    pipeline to swap data sources (CSV, API, database) without
+    modifying downstream processing logic.
+
+    Args:
+        raw_data_path: File path to the raw CSV data.
+
+    Returns:
+        Raw DataFrame with all original columns.
+
+    Raises:
+        FileNotFoundError: If the specified CSV file does not exist.
     """
-    print(f"[load_data.load_raw_data] Loading raw data from {raw_data_path}")
-    
+    path = Path(raw_data_path)
+    logger.info("Loading raw data from %s", path)
+
     try:
-        df = load_csv(raw_data_path)
-        print(f"[load_data.load_raw_data] Loaded dataframe shape: {df.shape}")
-        return df
-        
+        df = load_csv(path)
     except FileNotFoundError:
         raise FileNotFoundError(
-            f"Raw data not found at {raw_data_path}\n"
-            "Check that you opened the correct repository folder and that data/raw exists"
-    )
+            f"Raw data not found at {path}. "
+            "Ensure the dataset is placed in data/raw/."
+        )
 
-df_raw = load_raw_data()
-print("df_raw.shape:", df_raw.shape)
-df_raw.head()
+    logger.info(
+        "Raw data loaded — %d rows, %d columns", len(df), len(df.columns)
+    )
+    return df

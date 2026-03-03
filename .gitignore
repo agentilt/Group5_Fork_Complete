@@ -21,6 +21,9 @@ build/
 .vscode/
 .idea/
 
+# Logs
+logs/
+
 # Local artifacts
 models/*
 !models/.gitkeep
