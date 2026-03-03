@@ -1,0 +1,52 @@
+2026-03-03 11:46:34 - nhl_pipeline - INFO - NHL Points Prediction Pipeline started
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 1: Loading raw data
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Loading raw data from data/raw/nhl_player_stats.csv
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Loaded CSV from data/raw/nhl_player_stats.csv — shape: (610, 86)
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Raw data loaded — 610 rows, 86 columns
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 2: Cleaning and preprocessing data
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Starting data cleaning and preprocessing
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Computed target 'Points' from ['Goals', 'Primary_Assists', 'Secondary_Assists'] — mean: 33.35
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Selected 10 features + target — shape: (610, 11)
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Encoded 'Pos' — baseline: 'C'
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Cleaning complete — 610 rows, 13 columns
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 3: Validating data
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Running validation checks
+2026-03-03 11:46:34 - nhl_pipeline - INFO - All validation checks passed
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 4: Saving processed data
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Saved CSV to data/processed/clean.csv — shape: (610, 13)
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 5: Training models
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Starting model training pipeline
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Split data — train: 488 rows, test: 122 rows (20% test)
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Scaled 12 features with StandardScaler
+2026-03-03 11:46:34 - nhl_pipeline - INFO - OLS trained — R² on train: 0.8718
+2026-03-03 11:46:34 - nhl_pipeline - INFO - LassoCV trained — R² on train: 0.8717, alpha: 0.086402
+2026-03-03 11:46:34 - nhl_pipeline - INFO - All models trained successfully
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - STEP 6: Evaluating models
+2026-03-03 11:46:34 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Generating evaluation report
+2026-03-03 11:46:34 - nhl_pipeline - INFO - OLS — Train R²: 0.8718, Test R²: 0.8598, Test MAE: 5.96
+2026-03-03 11:46:34 - nhl_pipeline - INFO - LASSO — Train R²: 0.8717, Test R²: 0.8601, Test MAE: 5.93
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Saved OLS summary to reports/ols_summary.txt
+2026-03-03 11:46:34 - nhl_pipeline - INFO - Saved actual vs predicted plot
+2026-03-03 11:46:35 - nhl_pipeline - INFO - Saved residual diagnostic plots
+2026-03-03 11:46:35 - nhl_pipeline - INFO - Durbin-Watson statistic: 1.8392 (ideal ≈ 2.0)
+2026-03-03 11:46:35 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:35 - nhl_pipeline - INFO - STEP 7: Saving model artifacts
+2026-03-03 11:46:35 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:35 - nhl_pipeline - INFO - Saved model to models/scaler.pkl
+2026-03-03 11:46:35 - nhl_pipeline - INFO - Saved model to models/ols_model.pkl
+2026-03-03 11:46:35 - nhl_pipeline - INFO - Saved model to models/lasso_model.pkl
+2026-03-03 11:46:35 - nhl_pipeline - INFO - ============================================================
+2026-03-03 11:46:35 - nhl_pipeline - INFO - PIPELINE COMPLETE
+2026-03-03 11:46:35 - nhl_pipeline - INFO - ============================================================
